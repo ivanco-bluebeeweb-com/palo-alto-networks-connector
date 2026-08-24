@@ -121,9 +121,9 @@ async def panw_sidebar(ctx) -> ui.UINode:
         for c in items:
             children.append(ui.Text(f"{c.title} ({c.kind})", variant="body"))
         children.append(ui.Divider())
-        children.append(ui.ListItem(label="Security Rules", on_click=ui.Call("__panel__panw_panos_overview")))
-        children.append(ui.ListItem(label="Panorama Overview", on_click=ui.Call("__panel__panw_panorama_overview")))
-        children.append(ui.ListItem(label="Health Audit", on_click=ui.Call("audit_panw_estate", {})))
+        children.append(ui.ListItem(title="Security Rules", on_click=ui.Call("__panel__panw_panos_overview")))
+        children.append(ui.ListItem(title="Panorama Overview", on_click=ui.Call("__panel__panw_panorama_overview")))
+        children.append(ui.ListItem(title="Health Audit", on_click=ui.Call("audit_panw_estate", {})))
         children.append(ui.Divider())
 
     children.append(ui.Stack(direction="v", gap=4, align="stretch", children=[
