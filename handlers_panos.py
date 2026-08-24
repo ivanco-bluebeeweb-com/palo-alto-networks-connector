@@ -404,96 +404,6 @@ async def delete_service_object(ctx, params: DeleteServiceObjectParams) -> Actio
         return ActionResult(success=False, error=e.message())
     return ActionResult(success=True, data=DeleteResult(id=params.name, title=params.name, deleted=True))
 
-
-@chat.function(
-    "list_zones",
-    "List security zones configured on the connected PAN-OS firewall.",
-    action_type="read",
-    data_model=ZoneList,
-)
-async def list_zones(ctx, params: ListZonesParams) -> ActionResult:
-    conn = await _authed_panos(ctx, params.connection_id)
-    if isinstance(conn, ActionResult):
-        return conn
-    try:
-        root = await pc.config_get(ctx, conn, _ZONE_ALL.format(vsys=params.vsys))
-    except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    items = []
-    for entry in root.findall(".//zone/entry"):
-        name = entry.get("name", "")
-        iface_el = entry.find("network/layer3")
-        ifaces = [m.text for m in iface_el.findall("member")] if iface_el is not None else []
-        items.append(Zone(id=name, title=name, interfaces=ifaces))
-    return ActionResult(success=True, data=ZoneList(title=f"{len(items)} zone(s)", items=items))
-
-
-@chat.function(
-    "list_interfaces",
-    "List network interfaces on the connected PAN-OS firewall.",
-    action_type="read",
-    data_model=InterfaceList,
-)
-async def list_interfaces(ctx, params: ListInterfacesParams) -> ActionResult:
-    conn = await _authed_panos(ctx, params.connection_id)
-    if isinstance(conn, ActionResult):
-        return conn
-    try:
-        root = await pc.config_get(ctx, conn, _INTERFACE_ALL)
-    except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    items = []
-    for entry in root.findall(".//interface//entry"):
-        name = entry.get("name", "")
-        if not name:
-            continue
-        ip_el = entry.find("layer3/ip/entry") if entry.find("layer3") is not None else entry.find("ip/entry")
-        items.append(Interface(id=name, title=name, ip=ip_el.get("name", "") if ip_el is not None else ""))
-    return ActionResult(success=True, data=InterfaceList(title=f"{len(items)} interface(s)", items=items))
-
-
-@chat.function(
-    "get_system_status",
-    "Read the connected PAN-OS firewall's own system status: hostname, model, serial, PAN-OS version, uptime.",
-    action_type="read",
-    data_model=SystemInfo,
-)
-async def get_system_status(ctx, params: GetSystemInfoParams) -> ActionResult:
-    conn = await _authed_panos(ctx, params.connection_id)
-    if isinstance(conn, ActionResult):
-        return conn
-    try:
-        root = await pc.op_command(ctx, conn, "<show><system><info></info></system></show>")
-    except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    info = root.find(".//system")
-    def _f(tag):
-        el = info.find(tag) if info is not None else None
-        return el.text if el is not None and el.text else ""
-    return ActionResult(success=True, data=SystemInfo(
-        id="system_info", title=_f("hostname"), hostname=_f("hostname"), model=_f("model"),
-        serial=_f("serial"), sw_version=_f("sw-version"), uptime=_f("uptime"),
-    ))
-
-
-@chat.function(
-    "commit_config",
-    "Commit the connected PAN-OS firewall's pending configuration changes so they take effect -- same as the Commit button in the PAN-OS web UI.",
-    action_type="write",
-    data_model=CommitResult,
-)
-async def commit_config(ctx, params: CommitParams) -> ActionResult:
-    conn = await _authed_panos(ctx, params.connection_id)
-    if isinstance(conn, ActionResult):
-        return conn
-    try:
-        root = await pc.commit(ctx, conn, f"<commit><description>{params.description}</description></commit>" if params.description else "<commit></commit>")
-    except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    job_el = root.find(".//job")
-    job_id = job_el.text if job_el is not None else ""
-    return ActionResult(success=True, data=CommitResult(id=job_id, title=f"Commit job {job_id}", job_id=job_id, status="pending"))
-
 # ──────────────────────────────────────────────────────────────────────────
 # Zones, Interfaces, System, Commit
 # ──────────────────────────────────────────────────────────────────────────
@@ -593,11 +503,9 @@ async def commit_config(ctx, params: CommitParams) -> ActionResult:
         root = await pc.commit(ctx, conn)
     except pc.ClientFail as e:
         return ActionResult(success=False, error=e.message())
-    msg_node = root.find(".//msg")
     job_node = root.find(".//job")
+    job_id = (job_node.text or "") if job_node is not None else ""
     return ActionResult(success=True, data=CommitResult(
-        id=(job_node.text if job_node is not None else "commit"),
-        title="Commit submitted",
-        job_id=(job_node.text or "") if job_node is not None else "",
-        message="".join(msg_node.itertext()) if msg_node is not None else "",
+        id=job_id or "commit", title=f"Commit job {job_id}" if job_id else "Commit submitted",
+        job_id=job_id, status="pending",
     ))
