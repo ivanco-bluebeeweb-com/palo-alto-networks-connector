@@ -371,6 +371,7 @@ class BulkSecurityRuleActionParams(_PanosScoped):
 
 
 class BulkActionOutcome(sdl.Entity):
+    title: str = ""
     id: str = ""
     ok: bool = False
     error: str = ""
@@ -387,6 +388,7 @@ class AuditPanwEstateParams(BaseModel):
 
 
 class AuditFinding(sdl.Entity):
+    title: str = ""
     id: str = ""
     severity: str = ""  # "info" | "warning" | "critical"
     message: str = ""
