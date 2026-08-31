@@ -34,7 +34,7 @@ async def bulk_security_rule_action(ctx, params: BulkSecurityRuleActionParams) -
             items.append(BulkActionOutcome(id=name, ok=True))
         except pc.ClientFail as e:
             items.append(BulkActionOutcome(id=name, ok=False, error=e.message()))
-    return ActionResult(success=True, data=BulkActionResult(title="Bulk security rule status change", items=items))
+    return ActionResult.success(BulkActionResult(title="Bulk security rule status change", items=items), summary="Bulk security rule action done.")
 
 
 @chat.function(
@@ -50,7 +50,7 @@ async def audit_panw_estate(ctx, params: AuditPanwEstateParams) -> ActionResult:
     panorama_conns = [c for c in connections if c.get("kind") == "panorama"]
 
     if not connections:
-        return ActionResult(success=False, error="No PAN-OS or Panorama connections are set up yet.")
+        return ActionResult.error("No PAN-OS or Panorama connections are set up yet.")
 
     for conn in panos_conns:
         try:
@@ -81,4 +81,4 @@ async def audit_panw_estate(ctx, params: AuditPanwEstateParams) -> ActionResult:
             if not connected:
                 findings.append(AuditFinding(id=f"{conn.get('id')}-{hostname}-offline", severity="warning", message=f"Managed device '{hostname}' on '{conn.get('title')}' is offline."))
 
-    return ActionResult(success=True, data=AuditReport(title=f"{len(findings)} finding(s) across {len(connections)} connection(s)", findings=findings))
+    return ActionResult.success(AuditReport(title=f"{len(findings)} finding(s) across {len(connections)} connection(s)", findings=findings), summary="Panw estate audit ready.")

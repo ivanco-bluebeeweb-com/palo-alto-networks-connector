@@ -44,13 +44,13 @@ async def list_device_groups(ctx, params: ListDeviceGroupsParams) -> ActionResul
     try:
         root = await pc.config_get(ctx, conn, _DEVICE_GROUP_ALL)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//device-group/entry"):
         name = entry.get("name", "")
         devices = entry.findall("devices/entry")
         items.append(DeviceGroup(id=name, title=name, device_count=len(devices)))
-    return ActionResult(success=True, data=DeviceGroupList(title=f"{len(items)} device group(s)", items=items))
+    return ActionResult.success(DeviceGroupList(title=f"{len(items)} device group(s)", items=items), summary="Device groups listed.")
 
 
 @chat.function(
@@ -66,7 +66,7 @@ async def list_managed_devices(ctx, params: ListManagedDevicesParams) -> ActionR
     try:
         root = await pc.op_command(ctx, conn, "<show><devices><all></all></devices></show>")
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//devices/entry"):
         serial = entry.get("name", "") or _text(entry, "serial")
@@ -75,7 +75,7 @@ async def list_managed_devices(ctx, params: ListManagedDevicesParams) -> ActionR
             id=serial, title=_text(entry, "hostname") or serial, serial=serial,
             connected=connected, sw_version=_text(entry, "sw-version"),
         ))
-    return ActionResult(success=True, data=ManagedDeviceList(title=f"{len(items)} managed device(s)", items=items))
+    return ActionResult.success(ManagedDeviceList(title=f"{len(items)} managed device(s)", items=items), summary="Managed devices listed.")
 
 
 @chat.function(
@@ -91,15 +91,15 @@ async def get_managed_device(ctx, params: GetManagedDeviceParams) -> ActionResul
     try:
         root = await pc.op_command(ctx, conn, "<show><devices><all></all></devices></show>")
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     for entry in root.findall(".//devices/entry"):
         serial = entry.get("name", "") or _text(entry, "serial")
         if serial == params.serial:
-            return ActionResult(success=True, data=ManagedDevice(
+            return ActionResult.success(ManagedDevice(
                 id=serial, title=_text(entry, "hostname") or serial, serial=serial,
                 connected=_text(entry, "connected") == "yes", sw_version=_text(entry, "sw-version"),
-            ))
-    return ActionResult(success=False, error=f"Managed device '{params.serial}' not found.")
+            ), summary="Managed device retrieved.")
+    return ActionResult.error(f"Managed device '{params.serial}' not found.")
 
 
 @chat.function(
@@ -115,9 +115,9 @@ async def list_templates(ctx, params: ListTemplatesParams) -> ActionResult:
     try:
         root = await pc.config_get(ctx, conn, _TEMPLATE_ALL)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = [Template(id=e.get("name", ""), title=e.get("name", "")) for e in root.findall(".//template/entry")]
-    return ActionResult(success=True, data=TemplateList(title=f"{len(items)} template(s)", items=items))
+    return ActionResult.success(TemplateList(title=f"{len(items)} template(s)", items=items), summary="Templates listed.")
 
 
 @chat.function(
@@ -133,7 +133,7 @@ async def list_panorama_security_rules(ctx, params: ListPanoramaSecurityRulesPar
     try:
         root = await pc.config_get(ctx, conn, _DG_RULEBASE.format(dg=params.device_group))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//rules/entry"):
         name = entry.get("name", "")
@@ -141,7 +141,7 @@ async def list_panorama_security_rules(ctx, params: ListPanoramaSecurityRulesPar
             id=name, title=name, action=_text(entry, "action"),
             disabled=_text(entry, "disabled") == "yes",
         ))
-    return ActionResult(success=True, data=PanoramaSecurityRuleList(title=f"{len(items)} security rule(s) in '{params.device_group}'", items=items))
+    return ActionResult.success(PanoramaSecurityRuleList(title=f"{len(items)} security rule(s) in '{params.device_group}'", items=items), summary="Panorama security rules listed.")
 
 
 @chat.function(
@@ -167,10 +167,10 @@ async def push_to_devices(ctx, params: PushToDevicesParams) -> ActionResult:
     try:
         root = await pc.commit(ctx, conn, cmd)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     job_node = root.find(".//job")
     job_id = (job_node.text or "") if job_node is not None else ""
-    return ActionResult(success=True, data=PushResult(
+    return ActionResult.success(PushResult(
         id=job_id or "push", title=f"Push job {job_id}" if job_id else "Push submitted",
         job_id=job_id, status="pending",
-    ))
+    ), summary="Push to devices done.")

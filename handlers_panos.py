@@ -74,7 +74,7 @@ async def list_security_rules(ctx, params: ListSecurityRulesParams) -> ActionRes
     try:
         root = await pc.config_get(ctx, conn, _RULEBASE_ALL.format(vsys=params.vsys))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//rules/entry"):
         name = entry.get("name", "")
@@ -83,7 +83,7 @@ async def list_security_rules(ctx, params: ListSecurityRulesParams) -> ActionRes
             from_zone=_member(entry, "from"), to_zone=_member(entry, "to"),
             disabled=_text(entry, "disabled") == "yes",
         ))
-    return ActionResult(success=True, data=SecurityRuleList(title=f"{len(items)} security rule(s)", items=items))
+    return ActionResult.success(SecurityRuleList(title=f"{len(items)} security rule(s)", items=items), summary="Security rules listed.")
 
 
 @chat.function(
@@ -99,15 +99,15 @@ async def get_security_rule(ctx, params: GetSecurityRuleParams) -> ActionResult:
     try:
         root = await pc.config_get(ctx, conn, _RULEBASE.format(vsys=params.vsys, name=params.name))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     entry = root.find(".//entry")
     if entry is None:
-        return ActionResult(success=False, error=f"Security rule '{params.name}' not found.")
-    return ActionResult(success=True, data=SecurityRule(
+        return ActionResult.error(f"Security rule '{params.name}' not found.")
+    return ActionResult.success(SecurityRule(
         id=params.name, title=params.name, action=_text(entry, "action"),
         from_zone=_member(entry, "from"), to_zone=_member(entry, "to"),
         disabled=_text(entry, "disabled") == "yes",
-    ))
+    ), summary="Security rule retrieved.")
 
 
 @chat.function(
@@ -135,11 +135,11 @@ async def create_security_rule(ctx, params: CreateSecurityRuleParams) -> ActionR
     try:
         await pc.config_set(ctx, conn, _RULEBASE.format(vsys=params.vsys, name=params.name), xml)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=SecurityRule(
+        return ActionResult.error(e.message())
+    return ActionResult.success(SecurityRule(
         id=params.name, title=params.name, action=params.action,
         from_zone=params.from_zone, to_zone=params.to_zone,
-    ))
+    ), summary="Security rule created.")
 
 
 @chat.function(
@@ -160,13 +160,13 @@ async def update_security_rule(ctx, params: UpdateSecurityRuleParams) -> ActionR
         try:
             await pc.config_edit(ctx, conn, f"{xpath}/action", f"<action>{params.action}</action>")
         except pc.ClientFail as e:
-            return ActionResult(success=False, error=e.message())
+            return ActionResult.error(e.message())
     val = "yes" if params.disabled else "no"
     try:
         await pc.config_edit(ctx, conn, f"{xpath}/disabled", f"<disabled>{val}</disabled>")
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=SecurityRule(id=params.name, title=params.name, action=params.action, disabled=params.disabled))
+        return ActionResult.error(e.message())
+    return ActionResult.success(SecurityRule(id=params.name, title=params.name, action=params.action, disabled=params.disabled), summary="Security rule updated.")
 
 
 @chat.function(
@@ -185,8 +185,8 @@ async def delete_security_rule(ctx, params: DeleteSecurityRuleParams) -> ActionR
     try:
         await pc.config_delete(ctx, conn, _RULEBASE.format(vsys=params.vsys, name=params.name))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=DeleteResult(id=params.name, title=params.name, deleted=True))
+        return ActionResult.error(e.message())
+    return ActionResult.success(DeleteResult(id=params.name, title=params.name, deleted=True), summary="Security rule deleted.")
 
 
 @chat.function(
@@ -207,8 +207,8 @@ async def reorder_security_rule(ctx, params: ReorderSecurityRuleParams) -> Actio
     try:
         await pc.config_move(ctx, conn, _RULEBASE.format(vsys=params.vsys, name=params.name), where, dst)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=DeleteResult(id=params.name, title=params.name, deleted=False))
+        return ActionResult.error(e.message())
+    return ActionResult.success(DeleteResult(id=params.name, title=params.name, deleted=False), summary="Reorder security rule done.")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ async def list_address_objects(ctx, params: ListAddressObjectsParams) -> ActionR
     try:
         root = await pc.config_get(ctx, conn, _ADDRESS_ALL.format(vsys=params.vsys))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//address/entry"):
         name = entry.get("name", "")
@@ -239,7 +239,7 @@ async def list_address_objects(ctx, params: ListAddressObjectsParams) -> ActionR
                 kind, value = t, (node.text or "")
                 break
         items.append(AddressObject(id=name, title=name, value=value, kind=kind))
-    return ActionResult(success=True, data=AddressObjectList(title=f"{len(items)} address object(s)", items=items))
+    return ActionResult.success(AddressObjectList(title=f"{len(items)} address object(s)", items=items), summary="Address objects listed.")
 
 
 @chat.function(
@@ -259,8 +259,8 @@ async def create_address_object(ctx, params: CreateAddressObjectParams) -> Actio
     try:
         await pc.config_set(ctx, conn, _ADDRESS.format(vsys=params.vsys, name=params.name), xml)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=AddressObject(id=params.name, title=params.name, value=params.value, kind=params.kind))
+        return ActionResult.error(e.message())
+    return ActionResult.success(AddressObject(id=params.name, title=params.name, value=params.value, kind=params.kind), summary="Address object created.")
 
 
 @chat.function(
@@ -281,8 +281,8 @@ async def update_address_object(ctx, params: UpdateAddressObjectParams) -> Actio
     try:
         await pc.config_edit(ctx, conn, _ADDRESS.format(vsys=params.vsys, name=params.name), xml)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=AddressObject(id=params.name, title=params.name, value=params.value, kind=kind))
+        return ActionResult.error(e.message())
+    return ActionResult.success(AddressObject(id=params.name, title=params.name, value=params.value, kind=kind), summary="Address object updated.")
 
 
 @chat.function(
@@ -301,8 +301,8 @@ async def delete_address_object(ctx, params: DeleteAddressObjectParams) -> Actio
     try:
         await pc.config_delete(ctx, conn, _ADDRESS.format(vsys=params.vsys, name=params.name))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=DeleteResult(id=params.name, title=params.name, deleted=True))
+        return ActionResult.error(e.message())
+    return ActionResult.success(DeleteResult(id=params.name, title=params.name, deleted=True), summary="Address object deleted.")
 
 
 @chat.function(
@@ -318,14 +318,14 @@ async def list_address_groups(ctx, params: ListAddressGroupsParams) -> ActionRes
     try:
         root = await pc.config_get(ctx, conn, _ADDRESS_GROUP_ALL.format(vsys=params.vsys))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//address-group/entry"):
         name = entry.get("name", "")
         static = entry.find("static")
         count = len(static.findall("member")) if static is not None else 0
         items.append(AddressGroup(id=name, title=name, member_count=count))
-    return ActionResult(success=True, data=AddressGroupList(title=f"{len(items)} address group(s)", items=items))
+    return ActionResult.success(AddressGroupList(title=f"{len(items)} address group(s)", items=items), summary="Address groups listed.")
 
 
 @chat.function(
@@ -341,14 +341,14 @@ async def list_service_objects(ctx, params: ListServiceObjectsParams) -> ActionR
     try:
         root = await pc.config_get(ctx, conn, _SERVICE_ALL.format(vsys=params.vsys))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//service/entry"):
         name = entry.get("name", "")
         proto = "tcp" if entry.find("protocol/tcp") is not None else ("udp" if entry.find("protocol/udp") is not None else "")
         port_el = entry.find(f"protocol/{proto}/port") if proto else None
         items.append(ServiceObject(id=name, title=name, protocol=proto, port=port_el.text if port_el is not None else ""))
-    return ActionResult(success=True, data=ServiceObjectList(title=f"{len(items)} service object(s)", items=items))
+    return ActionResult.success(ServiceObjectList(title=f"{len(items)} service object(s)", items=items), summary="Service objects listed.")
 
 
 @chat.function(
@@ -365,8 +365,8 @@ async def create_service_object(ctx, params: CreateServiceObjectParams) -> Actio
     try:
         await pc.config_set(ctx, conn, _SERVICE.format(vsys=params.vsys, name=params.name), xml)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=ServiceObject(id=params.name, title=params.name, protocol=params.protocol, port=params.port))
+        return ActionResult.error(e.message())
+    return ActionResult.success(ServiceObject(id=params.name, title=params.name, protocol=params.protocol, port=params.port), summary="Service object created.")
 
 
 @chat.function(
@@ -384,8 +384,8 @@ async def update_service_object(ctx, params: UpdateServiceObjectParams) -> Actio
     try:
         await pc.config_edit(ctx, conn, xpath, xml)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=ServiceObject(id=params.name, title=params.name, protocol="tcp", port=params.port))
+        return ActionResult.error(e.message())
+    return ActionResult.success(ServiceObject(id=params.name, title=params.name, protocol="tcp", port=params.port), summary="Service object updated.")
 
 
 @chat.function(
@@ -401,8 +401,8 @@ async def delete_service_object(ctx, params: DeleteServiceObjectParams) -> Actio
     try:
         await pc.config_delete(ctx, conn, _SERVICE.format(vsys=params.vsys, name=params.name))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
-    return ActionResult(success=True, data=DeleteResult(id=params.name, title=params.name, deleted=True))
+        return ActionResult.error(e.message())
+    return ActionResult.success(DeleteResult(id=params.name, title=params.name, deleted=True), summary="Service object deleted.")
 
 # ──────────────────────────────────────────────────────────────────────────
 # Zones, Interfaces, System, Commit
@@ -421,7 +421,7 @@ async def list_zones(ctx, params: ListZonesParams) -> ActionResult:
     try:
         root = await pc.config_get(ctx, conn, _ZONE_ALL.format(vsys=params.vsys))
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//zone/entry"):
         name = entry.get("name", "")
@@ -433,7 +433,7 @@ async def list_zones(ctx, params: ListZonesParams) -> ActionResult:
                     mode = m
                     break
         items.append(Zone(id=name, title=name, mode=mode))
-    return ActionResult(success=True, data=ZoneList(title=f"{len(items)} zone(s)", items=items))
+    return ActionResult.success(ZoneList(title=f"{len(items)} zone(s)", items=items), summary="Zones listed.")
 
 
 @chat.function(
@@ -449,7 +449,7 @@ async def list_interfaces(ctx, params: ListInterfacesParams) -> ActionResult:
     try:
         root = await pc.config_get(ctx, conn, _INTERFACE_ALL)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     items = []
     for entry in root.findall(".//entry"):
         name = entry.get("name", "")
@@ -458,7 +458,7 @@ async def list_interfaces(ctx, params: ListInterfacesParams) -> ActionResult:
         ip_node = entry.find(".//ip/entry")
         ip = ip_node.get("name", "") if ip_node is not None else ""
         items.append(Interface(id=name, title=name, ip=ip))
-    return ActionResult(success=True, data=InterfaceList(title=f"{len(items)} interface(s)", items=items))
+    return ActionResult.success(InterfaceList(title=f"{len(items)} interface(s)", items=items), summary="Interfaces listed.")
 
 
 @chat.function(
@@ -474,16 +474,16 @@ async def get_system_status(ctx, params: GetSystemInfoParams) -> ActionResult:
     try:
         root = await pc.op_command(ctx, conn, "<show><system><info></info></system></show>")
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     info = root.find(".//system")
     if info is None:
-        return ActionResult(success=False, error="Unexpected response reading system status.")
-    return ActionResult(success=True, data=SystemInfo(
+        return ActionResult.error("Unexpected response reading system status.")
+    return ActionResult.success(SystemInfo(
         id="system_status", title=_text(info, "hostname"),
         hostname=_text(info, "hostname"), model=_text(info, "model"),
         serial=_text(info, "serial"), sw_version=_text(info, "sw-version"),
         uptime=_text(info, "uptime"),
-    ))
+    ), summary="System status retrieved.")
 
 
 @chat.function(
@@ -502,10 +502,10 @@ async def commit_config(ctx, params: CommitParams) -> ActionResult:
     try:
         root = await pc.commit(ctx, conn)
     except pc.ClientFail as e:
-        return ActionResult(success=False, error=e.message())
+        return ActionResult.error(e.message())
     job_node = root.find(".//job")
     job_id = (job_node.text or "") if job_node is not None else ""
-    return ActionResult(success=True, data=CommitResult(
+    return ActionResult.success(CommitResult(
         id=job_id or "commit", title=f"Commit job {job_id}" if job_id else "Commit submitted",
         job_id=job_id, status="pending",
-    ))
+    ), summary="Commit config done.")

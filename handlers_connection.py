@@ -52,14 +52,14 @@ async def _resolve_connection(ctx, kind: str, connection_id: str = "") -> dict |
 async def _authed_panos(ctx, connection_id: str = "") -> dict | ActionResult:
     conn = await _resolve_connection(ctx, "panos", connection_id)
     if conn is None:
-        return ActionResult(success=False, error=pc._MESSAGES[pc.ACCOUNT_MISSING])
+        return ActionResult.error(pc._MESSAGES[pc.ACCOUNT_MISSING])
     return conn
 
 
 async def _authed_panorama(ctx, connection_id: str = "") -> dict | ActionResult:
     conn = await _resolve_connection(ctx, "panorama", connection_id)
     if conn is None:
-        return ActionResult(success=False, error=pc._MESSAGES[pc.ACCOUNT_MISSING])
+        return ActionResult.error(pc._MESSAGES[pc.ACCOUNT_MISSING])
     return conn
 
 
@@ -73,7 +73,7 @@ async def connect_panos(ctx, params: ConnectPanosParams) -> ActionResult:
     try:
         api_key = await pc.keygen(ctx, params.host, params.username, params.password)
     except pc.ClientFail as exc:
-        return ActionResult(success=False, error=exc.message(), retryable=(exc.status in (0, 429, 500, 502, 503)))
+        return ActionResult.error(exc.message(), retryable=exc.status in (0, 429, 500, 502, 503))
     connections = await _load_connections(ctx)
     conn_id = str(uuid.uuid4())
     label = params.label or params.host
@@ -82,9 +82,9 @@ async def connect_panos(ctx, params: ConnectPanosParams) -> ActionResult:
         "api_key": api_key, "label": label,
     })
     await _save_connections(ctx, connections)
-    return ActionResult(success=True, data=ProviderConnection(
+    return ActionResult.success(ProviderConnection(
         id=conn_id, title=label, kind="panos", connected=True, detail=params.host,
-    ))
+    ), summary="Panos connected.")
 
 
 @chat.function(
@@ -97,7 +97,7 @@ async def connect_panorama(ctx, params: ConnectPanoramaParams) -> ActionResult:
     try:
         api_key = await pc.keygen(ctx, params.host, params.username, params.password)
     except pc.ClientFail as exc:
-        return ActionResult(success=False, error=exc.message(), retryable=(exc.status in (0, 429, 500, 502, 503)))
+        return ActionResult.error(exc.message(), retryable=exc.status in (0, 429, 500, 502, 503))
     connections = await _load_connections(ctx)
     conn_id = str(uuid.uuid4())
     label = params.label or params.host
@@ -106,9 +106,9 @@ async def connect_panorama(ctx, params: ConnectPanoramaParams) -> ActionResult:
         "api_key": api_key, "label": label,
     })
     await _save_connections(ctx, connections)
-    return ActionResult(success=True, data=ProviderConnection(
+    return ActionResult.success(ProviderConnection(
         id=conn_id, title=label, kind="panorama", connected=True, detail=params.host,
-    ))
+    ), summary="Panorama connected.")
 
 
 @chat.function(
@@ -126,7 +126,7 @@ async def list_connections(ctx, params: NoParams) -> ActionResult:
         )
         for c in connections
     ]
-    return ActionResult(success=True, data=ProviderConnectionList(items=items))
+    return ActionResult.success(ProviderConnectionList(items=items), summary="Connections listed.")
 
 
 @chat.function(
@@ -139,6 +139,6 @@ async def disconnect_palo_alto(ctx, params: DisconnectParams) -> ActionResult:
     connections = await _load_connections(ctx)
     remaining = [c for c in connections if c.get("id") != params.connection_id]
     if len(remaining) == len(connections):
-        return ActionResult(success=False, error="Connection not found.")
+        return ActionResult.error("Connection not found.")
     await _save_connections(ctx, remaining)
-    return ActionResult(success=True, data=DeleteResult(deleted=True))
+    return ActionResult.success(DeleteResult(deleted=True), summary="Palo alto disconnected.")
